@@ -1,0 +1,36 @@
+"""
+Created on Tue Jul 27 11:55:35 2021
+compile gaussian file from converrted mol2 file to gif using openbabel 
+@author: Woon
+"""
+import os
+
+path='C:/Users/bomoh/OneDrive/Documents/benchamarking/TADF/'
+for filename in os.listdir(path):
+    if filename.endswith('.gif'): 
+        with open(os.path.join(path,filename),'r') as f1:
+            new_filename=filename.split('.')[0]+'.com'
+            print(new_filename)
+            new_file = os.path.join(path, new_filename)
+            with open(os.path.join(path,new_file),'w') as f2:
+                f2.write('%nproc=64'+'\n')
+                f2.write('%chk='+filename.split('.')[0]+'.chk'+'\n')
+                f2.write('%mem=64GB'+'\n')
+                f2.write('# opt pm6'+'\n')
+                f2.write('\n')
+                f2.write('*****'+'\n')
+                f2.write('\n')
+                for i, line in enumerate(f1):
+                    if i>4:
+                        f2.write(line)
+                f2.write('--link1--'+'\n')
+                f2.write('%nproc=64'+'\n')
+                f2.write('%chk='+filename.split('.')[0]+'.chk'+'\n')
+                f2.write('%mem=64GB'+'\n')
+                f2.write('# opt b3lyp/sto-3g Geom=Check Guess=Read'+'\n')
+                f2.write('\n')
+                f2.write('*****'+'\n')
+                f2.write('\n')
+                f2.write('0 1')
+f2.close()
+f1.close()
