@@ -152,11 +152,11 @@ def gaussian(file_to_read, a=0.1,type=1):
     for i in range(no_atom):
         try:
             b=molecule[i].split()
-            b=str(b[3])+'  '+str(b[4])+'  '+str(b[5])
+            b=str('{:.6f}'.format(float(b[3])))+'  '+str('{:.6f}'.format(float(b[4])))+'  '+str('{:.6f}'.format(float(b[5])))
         except:
             a=molecule[0]
             b=a[i]
-            b=str(b[0])+'  '+str(b[1])+'  '+str(b[2])
+            b=str('{:.6f}'.format(float(b[0])))+'  '+str('{:.6f}'.format(float(b[1])))+'  '+str('{:.6f}'.format(float(b[2])))
         f2.write(str(find_element(list_of_atom[i]))+'  '+b+'\n')
     f2.write('\n')
     for i, line in enumerate(f):
@@ -219,7 +219,7 @@ def gss(a, b,file_to_read, tol=0.01):
         txt='w1= '+ str(c)+ 'J1= '+ str(J1)+'w2= '+ str(d) + ' J2= '+str(J2)
         listofw.write(txt)
         listofw.write('/n')
-	listofw.close()
+        listofw.close()
         c = b - (b - a) / gr
         d = a + (b - a) / gr
     return (b + a) / 2
