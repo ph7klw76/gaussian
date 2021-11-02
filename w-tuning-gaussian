@@ -1,0 +1,232 @@
+import numpy as np
+import math
+import time
+import subprocess
+import shutil
+from periodictable import elements
+import cclib
+import os
+from os.path import exists
+from subprocess import check_output
+import re
+
+
+def convert_gaussian(file_to_read, a='100000000'):
+    file_to_write='./'+file_to_read+'.com'
+    file_to_read='./'+file_to_read+'.gjf'
+    f=open(file_to_read, 'r')
+    f2=open(file_to_write,'w')
+    f2.write('%nproc=64'+'\n')
+    f2.write('%mem=32GB'+'\n')
+    iop='iop(3/107=0'+a+'),'+'iop(3/108=0'+a+')'
+    f2.write('# opt wb97x/Def2SVP scrf=(solvent=toluene) geom=connectivity '+iop+'\n')
+    f2.write('\n')
+    f2.write('*****'+'\n')
+    f2.write('\n')
+    f2.write('0 1'+'\n')
+    for i, line in enumerate(f):
+        if i>5:
+            f2.write(line)
+    f.close()
+    f2.close()
+
+
+def Energy(filename):
+    filename='./'+filename+'.log'
+    try:
+        with open(filename, 'r') as f:
+            last_line = f.readlines()[-15:]
+            last_line=str(last_line).split('HF=')
+            last_line=last_line[1].split('\\')
+            energy=last_line[0]
+            return float(energy)*27.2114
+    except:
+        dataList,energy = optimized('./'+filename)
+        return float(energy)*27.2114
+
+def find_element(a):
+    for el in elements: 
+        if el.number==a:
+            return el.symbol
+def findInList(dataList, target) :
+	for i in range(0, len(dataList)) :
+		if dataList[i].find(target) != -1 :
+			return i
+	return -1
+
+def getCoordinates(dataList) :
+	start = findInList(dataList, "Standard orientation")
+	dataList = dataList[start + 5 : ]
+	dataList = dataList[: findInList(dataList, "-----")]
+	return dataList
+
+def getEnergy(structure) :
+	for line in structure.split('\n') :
+		if line.startswith(' SCF Done') :
+			arr = line.split('=')
+			return float(re.split(" +", arr[1].strip())[0])
+	
+	return 1000.0
+
+def optimized(filename):
+    infoBlock = ''
+    optimized = False
+    optimized_structure = ''
+    with open(filename, 'r') as fin :
+    	isStructure = True
+    	isInfo = True
+    	structures = []
+    	currentStructure = ''
+    	for line in fin :
+    		if line.startswith(' GradGrad') :
+    			if isInfo :
+    				isInfo = False
+    			if currentStructure != '' :
+    				structures.append((getEnergy(currentStructure), currentStructure))
+    				currentStructure = ''
+    			isStructure = not isStructure
+    		elif isInfo :
+    			infoBlock += line
+    		elif isStructure :
+    			currentStructure += line
+    		else :
+    			if line.find('Optimized') != -1 :
+    				optimized = True
+    
+    	if optimized :
+    		optimized_structure = currentStructure
+    	else :
+    		if currentStructure != '' :
+    			structures.append((getEnergy(currentStructure), currentStructure))
+    		structures = sorted(structures, key=lambda item : item[0])
+    		optimized_structure = structures[0][1]
+    for i in range(len(structures)):
+        E=structures[i][0]
+    return optimized_structure.split('\n'),E
+
+#### ASSUME you have a log file#####
+def gaussian(file_to_read, a=0.1,type=1):
+    file_to_read1=str(file_to_read)+'.log'
+    myfile2=file_to_read+'add_E.log' 
+    file_exists = exists('./'+myfile2)
+    data = cclib.io.ccread('./'+file_to_read1)
+    if type==3 and file_exists:
+        data = cclib.io.ccread('./'+myfile2)
+    try:  #get molecular structure
+        dataList,E = optimized('./'+file_to_read1)
+        molecule = getCoordinates(dataList) 
+        no_atom=len(molecule)
+    except:
+        molecule=data.atomcoords
+        no_atom=len(molecule[0])
+    list_of_atom=data.atomnos
+    file_to_read2=str(file_to_read)+'.gjf'
+    f=open('./'+file_to_read2, 'r')
+    file_to_write=file_to_read+'.com'
+    f2=open('./'+file_to_write,'w')
+    f2.write('%nproc=64'+'\n')
+    f2.write('%mem=126GB'+'\n')
+    a=format(float(a), '.4f')
+    a=str(a).split('0.')[1]
+    a=a+'00000'
+    iop='iop(3/107=0'+a+'),'+'iop(3/108=0'+a+')'
+    if type==1:
+        f2.write('# opt wb97x/Def2SVP scrf=(solvent=toluene) geom=connectivity '+iop+'\n')
+    if type==2:
+        f2.write('# uwb97x/Def2SVP scrf=(solvent=toluene) geom=connectivity '+iop+'\n')
+    if type==3:
+        f2.write('# opt uwb97x/Def2SVP scrf=(solvent=toluene) geom=connectivity '+iop+'\n')
+    if type==4:
+        f2.write('# wb97x/Def2SVP scrf=(solvent=toluene) geom=connectivity '+iop+'\n')
+    f2.write('\n')
+    f2.write('*****'+'\n')
+    f2.write('\n')
+    if type==1:
+        f2.write('0 1'+'\n')
+    if type==2:
+        f2.write('-1 2'+'\n')
+    if type==3:
+        f2.write('-1 2'+'\n')
+    if type==4:
+        f2.write('0 1'+'\n')
+    for i in range(no_atom):
+        try:
+            b=molecule[i].split()
+            b=str(b[3])+'  '+str(b[4])+'  '+str(b[5])
+        except:
+            a=molecule[0]
+            b=a[i]
+            b=str(b[0])+'  '+str(b[1])+'  '+str(b[2])
+        f2.write(str(find_element(list_of_atom[i]))+'  '+b+'\n')
+    f2.write('\n')
+    for i, line in enumerate(f):
+        if i>no_atom+6:
+            f2.write(str(line))    
+    f.close()
+    f2.close()
+
+def make_sh_file(file):
+    shutil.copyfile('./gaussian1.sh','./gaussian'+file+'.sh')
+    time.sleep(3)
+    gaussian=open('./gaussian'+file+'.sh', 'a')
+    gaussian.write('g09 <'+file+'.com>'+' '+file+'.log')
+    gaussian.close()
+    output = check_output('source '+ 'gaussian'+file+'.sh'+'; env -0',shell=True, executable='/bin/bash')
+    # subprocess.run(['source '+ 'gaussian'+file+'.sh'])
+
+
+
+def w_tuning(file_to_read, a):
+    gaussian(file_to_read, a,type=1)
+    make_sh_file(file_to_read)
+    time.sleep(5)
+    Energy0=Energy(file_to_read)
+    data = cclib.io.ccread('./'+file_to_read+'.log')
+    HOMO=data.moenergies[0][int(data.homos)]
+    LUMO=data.moenergies[0][int(data.homos)+1]
+    gaussian(file_to_read, a,type=2)
+    make_sh_file(file_to_read)
+    time.sleep(5)
+    Energy_0p1=Energy(file_to_read)
+    gaussian(file_to_read, a,type=3)
+    make_sh_file(file_to_read)
+    time.sleep(5)
+    Energy_n1=Energy(file_to_read)
+    myfile2=file_to_read+'add_E' #new file
+    shutil.copyfile('./'+file_to_read+'.log','./'+myfile2+'.log')
+    gaussian(file_to_read, a,type=4) 
+    make_sh_file(file_to_read)
+    time.sleep(5)
+    Energy_n1p0=Energy(myfile2)
+    errorH=(float(Energy0)-float(Energy_0p1))-float(HOMO)
+    errorL=(float(Energy_n1)-float(Energy_n1p0))-float(LUMO)
+    error=np.sqrt(errorH**2+errorL**2)
+    return error
+
+def gss(a, b,file_to_read, tol=0.01):
+    listofw=open('./w_file.txt', 'w')
+    gr = (math.sqrt(5) + 1) / 2
+    c = b - (b - a) / gr
+    d = a + (b - a) / gr
+    while abs(b - a) > tol:
+        J1=w_tuning(file_to_read,c)
+        time.sleep(5)
+        J2=w_tuning(file_to_read,d)
+        if J1<J2:
+            b = d
+        else:
+            a = c
+        txt='w1= '+ str(c)+ 'J1= '+ str(J1)+'w2= '+ str(d) + ' J2= '+str(J2)
+        listofw.write(txt)
+        listofw.write('/n')
+        c = b - (b - a) / gr
+        d = a + (b - a) / gr
+    return (b + a) / 2
+
+
+myfilelist=['optm-DAz-TXO2']
+for myfile in myfilelist:
+    w_final=gss(0.03,0.1,myfile)
+    gaussian(myfile, a=float(w_final),type=1)
+    make_sh_file(myfile)
+    os.rename('./'+myfile+'.log', './'+myfile+str(w_final)+'.log')
