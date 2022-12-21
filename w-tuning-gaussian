@@ -13,13 +13,13 @@ import re
 
 def convert_gaussian(file_to_read, a='100000000'):
     file_to_write='./'+file_to_read+'.com'
-    file_to_read='./'+file_to_read+'.gjf'
+    file_to_read='./'+file_to_read+'.com'
     f=open(file_to_read, 'r')
     f2=open(file_to_write,'w')
-    f2.write('%nproc=64'+'\n')
-    f2.write('%mem=32GB'+'\n')
+    f2.write('%nproc=2'+'\n')
+    f2.write('%mem=4GB'+'\n')
     iop='iop(3/107=0'+a+'),'+'iop(3/108=0'+a+')'
-    f2.write('# opt wb97x/Def2SVP scrf=(solvent=toluene) geom=connectivity '+iop+'\n')
+    f2.write('# opt wb97xd/sto-3g scrf=(solvent=toluene) '+iop+'\n')
     f2.write('\n')
     f2.write('*****'+'\n')
     f2.write('\n')
@@ -35,10 +35,11 @@ def Energy(filename):
     filename='./'+filename+'.log'
     try:
         with open(filename, 'r') as f:
-            last_line = f.readlines()[-15:]
-            last_line=str(last_line).split('HF=')
-            last_line=last_line[1].split('\\')
-            energy=last_line[0]
+            last_line = f.readlines()
+            for line in last_line:
+                if "SCF Done" in line:
+                    line=line.split()
+                    energy=line[4]
             return float(energy)*27.2114
     except:
         dataList,energy = optimized('./'+filename)
@@ -120,24 +121,24 @@ def gaussian(file_to_read, a=0.1,type=1):
         molecule=data.atomcoords
         no_atom=len(molecule[0])
     list_of_atom=data.atomnos
-    file_to_read2=str(file_to_read)+'.gjf'
+    file_to_read2=str(file_to_read)+'.com'
     f=open('./'+file_to_read2, 'r')
     file_to_write=file_to_read+'.com'
     f2=open('./'+file_to_write,'w')
-    f2.write('%nproc=64'+'\n')
-    f2.write('%mem=126GB'+'\n')
+    f2.write('%nproc=2'+'\n')
+    f2.write('%mem=4GB'+'\n')
     a=format(float(a), '.4f')
     a=str(a).split('0.')[1]
     a=a+'00000'
     iop='iop(3/107=0'+a+'),'+'iop(3/108=0'+a+')'
     if type==1:
-        f2.write('# opt wb97x/Def2SVP scrf=(solvent=toluene) geom=connectivity '+iop+'\n')
+        f2.write('# opt wb97xd/sto-3g scrf=(solvent=toluene) '+iop+'\n')
     if type==2:
-        f2.write('# uwb97x/Def2SVP scrf=(solvent=toluene) geom=connectivity '+iop+'\n')
+        f2.write('# uwb97xd/sto-3g scrf=(solvent=toluene) '+iop+'\n')
     if type==3:
-        f2.write('# opt uwb97x/Def2SVP scrf=(solvent=toluene) geom=connectivity '+iop+'\n')
+        f2.write('# opt uwb97xd/sto-3g scrf=(solvent=toluene) '+iop+'\n')
     if type==4:
-        f2.write('# wb97x/Def2SVP scrf=(solvent=toluene) geom=connectivity '+iop+'\n')
+        f2.write('# wb97xd/sto-3g scrf=(solvent=toluene) '+iop+'\n')
     f2.write('\n')
     f2.write('*****'+'\n')
     f2.write('\n')
@@ -204,7 +205,7 @@ def w_tuning(file_to_read, a):
     return error
 
 def gss(a, b,file_to_read, tol=0.01):
-    listofw=open('./w_file.txt', 'w')
+#    listofw=open('./w_file.txt', 'w')
     gr = (math.sqrt(5) + 1) / 2
     c = b - (b - a) / gr
     d = a + (b - a) / gr
@@ -217,15 +218,17 @@ def gss(a, b,file_to_read, tol=0.01):
         else:
             a = c
         txt='w1= '+ str(c)+ 'J1= '+ str(J1)+'w2= '+ str(d) + ' J2= '+str(J2)
-        listofw.write(txt)
-        listofw.write('/n')
-        listofw.close()
+        print(txt)
+#        listofw.write(txt)
+#        listofw.write('\n')
         c = b - (b - a) / gr
         d = a + (b - a) / gr
+        time.sleep(2)
+#        listofw.close()
     return (b + a) / 2
 
 
-myfilelist=['optm-DAz-TXO2']
+myfilelist=['benzene']
 for myfile in myfilelist:
     w_final=gss(0.03,0.1,myfile)
     gaussian(myfile, a=float(w_final),type=1)
