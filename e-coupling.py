@@ -26,7 +26,7 @@
 """
 
 
-# require to create logfile.tx before it can be run#
+# after completion of calculation, you require to create logfile.txt before it can be run#
 import os
 import numpy as np
 
